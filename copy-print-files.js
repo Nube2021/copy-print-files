@@ -67,12 +67,12 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
     const askYesNo = (question) => {
         return new Promise((resolve) => {
             const ask = () => {
-                rl.question(question + ' (y/n): ', (answer) => {
+                rl.question(question + ' (y/n) [Press Enter for no]: ', (answer) => {
                     const normalized = answer.trim().toLowerCase();
-                    if (normalized === 'y' || normalized === 'yes') {
-                        resolve(true);
-                    } else if (normalized === 'n' || normalized === 'no') {
+                    if (normalized === '' || normalized === 'n' || normalized === 'no') {
                         resolve(false);
+                    } else if (normalized === 'y' || normalized === 'yes') {
+                        resolve(true);
                     } else {
                         console.log('\x1b[31mPlease answer with y or n\x1b[0m');
                         ask();
@@ -219,8 +219,12 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
             const longerEdgeTargets = await promptForLongerEdgeFiles(total100x70, total120x80);
             target100x70LongerEdge = longerEdgeTargets.target100x70;
             target120x80LongerEdge = longerEdgeTargets.target120x80;
-            console.log(`\nTarget 100x70 longer edge: ${target100x70LongerEdge}`);
-            console.log(`Target 120x80 longer edge: ${target120x80LongerEdge}\n`);
+            
+            // Only show targets if at least one is greater than 0
+            if (target100x70LongerEdge > 0 || target120x80LongerEdge > 0) {
+                console.log(`\nTarget 100x70 longer edge: ${target100x70LongerEdge}`);
+                console.log(`Target 120x80 longer edge: ${target120x80LongerEdge}\n`);
+            }
 
             // Sorting priority: 100x70, 120x80, others
             const priority = (sku) => sku.includes('100x70') ? 0 : (sku.includes('120x80') ? 1 : 2);
