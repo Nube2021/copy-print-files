@@ -3,7 +3,7 @@
 // TO GENERATE AN EXECUTABLE, type "pkg copy-print-files.js" in this directory
 
 // TEST MODE: Set to true to skip stock checking and prevent stock list modifications
-const TEST_MODE = false;
+const TEST_MODE = true;
 
 // const sharp = require('sharp')
 // const $ = require('jquery')
