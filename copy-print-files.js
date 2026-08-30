@@ -145,6 +145,7 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
             'I:/print-files-new'
         ]
         var destDir = 'I:/print-files-destination';
+        var destDir = 'C:/Users/Chadi/Desktop/print-files-newest-orders';
     } else {
         console.log('Could not determine Operating System')
         return 0
