@@ -258,7 +258,8 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
 
             {
                 // Iterate sorted entries, copy files
-                // Process SKUs sequentially to avoid file lock conflicts, but copies within each SKU are parallel
+                // Collect all copy tasks first, then execute in parallel
+                const copyTasks = [];
                 for (const entry of sortedEntries) {
                     const sku = entry.sku;
                     const baseSku = sku.split('_')[1];
@@ -337,7 +338,7 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
                                 
                                 if (fileCache.has(specialFilename) && copied100x70LongerEdge < target100x70LongerEdge) {
                                     const specialPrintFilePath = fileCache.get(specialFilename);
-                                    copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, specialPrintFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy);
+                                    copyTasks.push(copyPrintFile(sku, suffixPart, 1, specialPrintFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy));
                                     specialCopiesFound++;
                                     copied100x70LongerEdge++;
                                     printFileFound = true;
@@ -357,7 +358,7 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
                                 
                                 if (fileCache.has(specialFilename) && copied120x80LongerEdge < target120x80LongerEdge) {
                                     const specialPrintFilePath = fileCache.get(specialFilename);
-                                    copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, specialPrintFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy);
+                                    copyTasks.push(copyPrintFile(sku, suffixPart, 1, specialPrintFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy));
                                     specialCopiesFound++;
                                     copied120x80LongerEdge++;
                                     printFileFound = true;
@@ -386,7 +387,7 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
                             if (fileCache.has(filename)) {
                                 const printFilePath = fileCache.get(filename);
                                 // Copy only this single file (numCopies = 1)
-                                copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, printFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy);
+                                copyTasks.push(copyPrintFile(sku, suffixPart, 1, printFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy));
                                 copiesFound++;
                                 printFileFound = true;
                             } else {
@@ -408,6 +409,11 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
                     }
                 }
             }
+            
+            // Execute all copy tasks in parallel for much faster copying
+            console.log(`\nExecuting ${copyTasks.length} copy operations in parallel...\n`);
+            await Promise.all(copyTasks);
+            console.log(`\nAll files copied successfully!\n`);
 
             // Upload (via POST) the modified inventory list to the server database
             if (!TEST_MODE) {
@@ -507,9 +513,16 @@ async function copyPrintFile(sku, suffixPart, numCopies, printFilePath, sizeDir,
         const newFilePath = sizeDir + '/' + baseName + suffixCopy + '.jpg';
         
         copyOperations.push(
-            fsPromises.copyFile(printFilePath, newFilePath).then(() => {
-                copiedFiles.push(baseName + suffixCopy + '.jpg');
-                return 1; // Return 1 to count this copy
+            new Promise((resolve, reject) => {
+                const readStream = fs.createReadStream(printFilePath);
+                const writeStream = fs.createWriteStream(newFilePath);
+                readStream.pipe(writeStream);
+                writeStream.on('finish', () => {
+                    copiedFiles.push(baseName + suffixCopy + '.jpg');
+                    resolve(1);
+                });
+                writeStream.on('error', reject);
+                readStream.on('error', reject);
             })
         );
         index++;
@@ -517,14 +530,9 @@ async function copyPrintFile(sku, suffixPart, numCopies, printFilePath, sizeDir,
     
     // Execute all copies in parallel
     await Promise.all(copyOperations);
-    copiedFilesCounter += numCopies;
-    
-    if (copiedFilesCounter % 50 === 0) {
-        console.log('- ' + copiedFilesCounter + ' of ' + totalFilesToCopy + ' files copied.')
-    }
     
     nextCopyIndex.set(key, index);
-    return copiedFilesCounter;
+    return numCopies;
 }
 
 
