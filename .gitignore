@@ -2,3 +2,7 @@ node_modules/
 .DS_Store
 *.log
 .env
+print-files/
+print-files_3/
+print-files-newest-orders
+versioning/
