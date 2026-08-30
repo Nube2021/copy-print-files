@@ -2,6 +2,8 @@
 // files to a specified folder
 // TO GENERATE AN EXECUTABLE, type "pkg copy-print-files.js" in this directory
 
+// TEST MODE: Set to true to skip stock checking and prevent stock list modifications
+const TEST_MODE = false;
 
 // const sharp = require('sharp')
 // const $ = require('jquery')
@@ -161,14 +163,21 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
 
     // First, get the inventory list from the server so we know which products are already produced and for which we don't need a print file to be copied to the print file folder.
     const takeFromStock = {}
-    var stockList = await requestFromServer({
-        hostname: 'om.printedpaintings.de',
-        port: 443,
-        path: '/orders/get-inventory-list/orders_stock',
-        method: 'GET',
-        rejectUnauthorized: false
-    })
-    var stockList = JSON.parse(stockList);
+    let stockList = [];
+    
+    if (!TEST_MODE) {
+        var stockListResponse = await requestFromServer({
+            hostname: 'om.printedpaintings.de',
+            port: 443,
+            path: '/orders/get-inventory-list/orders_stock',
+            method: 'GET',
+            rejectUnauthorized: false
+        })
+        stockList = JSON.parse(stockListResponse);
+        console.log('Stock list loaded from server.');
+    } else {
+        console.log('\x1b[33m⚠️  TEST MODE: Skipping stock list download. Stock will not be checked or modified.\x1b[0m');
+    }
 
     const options = {
       hostname: 'om.printedpaintings.de',
@@ -373,20 +382,25 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
             }
 
             // Upload (via POST) the modified inventory list to the server database
-            const res = await requestFromServer(
-                {
-                    hostname: 'om.printedpaintings.de',
-                    port: 443,
-                    path: '/orders/update-stock-list/orders_stock',
-                    method: 'POST',
-                    rejectUnauthorized: false,
-                    headers: {
-                        'Content-Type': 'application/json',
-                     'X-Secure-Key': 'YX2qXQwPls:}zwem7j6u80Y240u|Y'
-                    }
-                },
-                JSON.stringify({stockList:stockList})
-            );
+            if (!TEST_MODE) {
+                const res = await requestFromServer(
+                    {
+                        hostname: 'om.printedpaintings.de',
+                        port: 443,
+                        path: '/orders/update-stock-list/orders_stock',
+                        method: 'POST',
+                        rejectUnauthorized: false,
+                        headers: {
+                            'Content-Type': 'application/json',
+                         'X-Secure-Key': 'YX2qXQwPls:}zwem7j6u80Y240u|Y'
+                        }
+                    },
+                    JSON.stringify({stockList:stockList})
+                );
+                console.log('Stock list updated on server.');
+            } else {
+                console.log('\x1b[33m⚠️  TEST MODE: Skipping stock list update to server.\x1b[0m');
+            }
             console.log('\r')
             console.log('--- \033[1;32m'+copiedFilesCounter+' file(s)\033[0m in '+batchesCounter+' batche(s) successfully copied.')
             if (copiedFiles.length > 0) {
