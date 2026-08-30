@@ -256,10 +256,11 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
             
             console.log(`\nTotal files to copy: ${totalFilesToCopy}\n`);
 
+            // Collect all copy tasks first, then execute in parallel
+            const copyTasks = [];
+            
             {
-                // Iterate sorted entries, copy files
-                // Collect all copy tasks first, then execute in parallel
-                const copyTasks = [];
+                // Iterate sorted entries, collect copy operations
                 for (const entry of sortedEntries) {
                     const sku = entry.sku;
                     const baseSku = sku.split('_')[1];
