@@ -228,6 +228,30 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
                 .filter(it => it.quantity > 0)
                 .sort((a,b) => priority(a.sku) - priority(b.sku));
 
+            // Calculate exact number of files to copy AFTER stock check
+            let totalFilesToCopy = 0;
+            for (const entry of sortedEntries) {
+                const sku = entry.sku;
+                let toShipCount = entry.quantity;
+                
+                // Simulate stock check to get actual quantity to copy
+                if (!TEST_MODE) {
+                    let processed = 0;
+                    for (const item of stockList) {
+                        if (item === sku && processed < toShipCount) {
+                            processed++;
+                        }
+                    }
+                    toShipCount = Math.max(toShipCount - processed, 0);
+                }
+                
+                // Account for triptych parts (3 files per SKU)
+                const parts = sku.includes('drei') ? 3 : 1;
+                totalFilesToCopy += toShipCount * parts;
+            }
+            
+            console.log(`\nTotal files to copy: ${totalFilesToCopy}\n`);
+
             {
                 // Iterate sorted entries, copy files
                 // Process SKUs sequentially to avoid file lock conflicts, but copies within each SKU are parallel
@@ -309,7 +333,7 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
                                 
                                 if (fileCache.has(specialFilename) && copied100x70LongerEdge < target100x70LongerEdge) {
                                     const specialPrintFilePath = fileCache.get(specialFilename);
-                                    copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, specialPrintFilePath, sizeDir, copiedFilesCounter, copiedFiles, numSkus);
+                                    copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, specialPrintFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy);
                                     specialCopiesFound++;
                                     copied100x70LongerEdge++;
                                     printFileFound = true;
@@ -329,7 +353,7 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
                                 
                                 if (fileCache.has(specialFilename) && copied120x80LongerEdge < target120x80LongerEdge) {
                                     const specialPrintFilePath = fileCache.get(specialFilename);
-                                    copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, specialPrintFilePath, sizeDir, copiedFilesCounter, copiedFiles, numSkus);
+                                    copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, specialPrintFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy);
                                     specialCopiesFound++;
                                     copied120x80LongerEdge++;
                                     printFileFound = true;
@@ -358,7 +382,7 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
                             if (fileCache.has(filename)) {
                                 const printFilePath = fileCache.get(filename);
                                 // Copy only this single file (numCopies = 1)
-                                copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, printFilePath, sizeDir, copiedFilesCounter, copiedFiles, numSkus);
+                                copiedFilesCounter = await copyPrintFile(sku, suffixPart, 1, printFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy);
                                 copiesFound++;
                                 printFileFound = true;
                             } else {
@@ -463,7 +487,7 @@ async function promptForLongerEdgeFiles(total100x70, total120x80) {
 }());
 
 
-async function copyPrintFile(sku, suffixPart, numCopies, printFilePath, sizeDir, copiedFilesCounter, copiedFiles, numSkus) {
+async function copyPrintFile(sku, suffixPart, numCopies, printFilePath, sizeDir, copiedFilesCounter, copiedFiles, totalFilesToCopy) {
     if (!fs.existsSync(sizeDir)) {
         fs.mkdirSync(sizeDir, { recursive: true })
     }
@@ -492,7 +516,7 @@ async function copyPrintFile(sku, suffixPart, numCopies, printFilePath, sizeDir,
     copiedFilesCounter += numCopies;
     
     if (copiedFilesCounter % 50 === 0) {
-        console.log('- ' + copiedFilesCounter + ' of ' + numSkus + ' files copied.')
+        console.log('- ' + copiedFilesCounter + ' of ' + totalFilesToCopy + ' files copied.')
     }
     
     nextCopyIndex.set(key, index);
