@@ -2,6 +2,7 @@ node_modules/
 .DS_Store
 *.log
 .env
+*.code-workspace
 print-files/
 print-files_3/
 print-files-newest-orders
