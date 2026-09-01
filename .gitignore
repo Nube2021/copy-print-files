@@ -3,6 +3,7 @@ node_modules/
 *.log
 .env
 *.code-workspace
+*.exe
 print-files/
 print-files_3/
 print-files-newest-orders
